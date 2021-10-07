@@ -47,12 +47,12 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $tokenCan = 'employee_permissions';
+        $tokenCan = 'customer_permissions';
         $token = $user->createToken('customer_token', [$tokenCan])->plainTextToken;
 
+        $user['token'] = $token;
         $response = [
             'user' => $user,
-            'token' => $token,
             'tokenCan' => $tokenCan
         ];
 

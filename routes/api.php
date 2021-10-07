@@ -64,3 +64,5 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::apiResource('customers', CustomerController::class);
     Route::apiResource('categories', CategoryController::class);
 });
+
+//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

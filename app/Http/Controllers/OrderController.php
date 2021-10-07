@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -44,9 +45,9 @@ class OrderController extends Controller
      */
     public function store()
     {
-        if(!auth()->user()->tokenCan('employee_permissions') || !auth()->user()->tokenCan('customer_permissions'))
+        if(!auth()->user()->tokenCan('customer_permissions'))
         {
-            abort(403, 'Unauthorized');
+            abort(403, 'Unauthorized');            
         }
         $attribute = request()->validate([
             'customer_id' => 'required',
@@ -54,11 +55,28 @@ class OrderController extends Controller
             'required_date' => 'required|date',
             'status' => 'required',
             'comments' => 'required|max:255',
-        ]);
-       
+        ]);        
 
+
+        $items_id = [];
+        foreach(request()->products as $product)
+        {
+            $items_id[] = $product["product_id"];
+        }
+        
+        $order_products = Product::whereIn('id', $items_id)->get();
+        for ($i = 0; $i < count($order_products); $i++) {
+            if(!($order_products[$i]["qty_in_stock"] >= request()->products[$i]["quantity"]))
+            {
+                return "Dont have enough products";
+            }
+        }
+        for ($i = 0; $i < count($order_products); $i++) {
+            $order_products[$i]->update(['qty_in_stock'=>$order_products[$i]["qty_in_stock"] - request()->products[$i]["quantity"]]);            
+        }
         $order = Order::create($attribute);
         $order->products()->attach(request()->products);
+        
         // if($order){
         //     $products = request()->products;
         //     $values = [];
@@ -106,19 +124,18 @@ class OrderController extends Controller
      */
     public function update(Request $request, Order $order)
     {        
-        if(auth()->user()->tokenCan('employee_permissions') || auth()->user()->id == $order->customer_id)
+        if(!auth()->user()->tokenCan('employee_permissions') || auth()->user()->id !== $order->customer_id)
         {
-            $o = Order::find($order->id);
-            $o->update($request->json()->all());
+            abort(403, 'Unauthorized');
+        }        
+        $o = Order::find($order->id);
+        $o->update($request->json()->all());
 
-            if($request->status == 2)
-            {
-                $date = now();
-                $o->update(['shipped_date'=>$date]);
-            }
+        if($request->status == 2)
+        {
+            $date = now();
+            $o->update(['shipped_date'=>$date]);
         }
-        abort(403, 'Unauthorized');
-        
     }
 
     /**
